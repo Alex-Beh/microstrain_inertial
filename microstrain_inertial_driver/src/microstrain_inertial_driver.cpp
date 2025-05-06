@@ -24,10 +24,12 @@
 
 #include "microstrain_inertial_driver/microstrain_inertial_driver.h"
 
+using namespace std::chrono_literals;
+
 namespace microstrain
 {
 
-Microstrain::Microstrain() : rclcpp::Node("microstrain_inertial_driver_node")
+Microstrain::Microstrain(const rclcpp::NodeOptions & options) : rclcpp::Node("microstrain_inertial_driver_node", options)
 {
   // Configure the logger
 #if MICROSTRAIN_ROLLING == 1 || MICROSTRAIN_HUMBLE == 1 || MICROSTRAIN_GALACTIC == 1
@@ -41,6 +43,16 @@ Microstrain::Microstrain() : rclcpp::Node("microstrain_inertial_driver_node")
   //Initialize the helper classes
   if (!NodeCommon::initialize(this))
     RCLCPP_FATAL(this->get_logger(), "Failed to initialize base node");
+
+  // Configure Node function
+  if(!this->configure_node())
+    return;
+
+  // starting spinning thread --> main_parsing_timer_
+  if(!this->activate_node())
+    return;
+
+  RCLCPP_INFO(this->get_logger(), "Constructor of Microstrain: All good! use_intra_process_comms: %d", options.use_intra_process_comms());
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -167,3 +179,6 @@ void Microstrain::handle_exception()
 }
 
 } // namespace microstrain
+
+#include <rclcpp_components/register_node_macro.hpp>
+RCLCPP_COMPONENTS_REGISTER_NODE(microstrain::Microstrain)

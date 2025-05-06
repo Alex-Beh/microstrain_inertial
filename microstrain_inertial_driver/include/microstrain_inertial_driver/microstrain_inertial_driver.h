@@ -31,7 +31,7 @@ namespace microstrain
 class Microstrain : public rclcpp::Node, public NodeCommon
 {
  public:
-  Microstrain();
+  Microstrain(const rclcpp::NodeOptions & options);
   ~Microstrain() = default;
 
   bool configure_node();

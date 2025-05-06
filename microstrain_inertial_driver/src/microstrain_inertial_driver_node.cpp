@@ -15,8 +15,9 @@ int main(int argc, char **argv)
 {
   rclcpp::init(argc, argv);
    
+  rclcpp::NodeOptions options;
   // Configure and activate the node
-  auto node = std::make_shared<microstrain::Microstrain>();
+  auto node = std::make_shared<microstrain::Microstrain>(options);
   if (!node->configure_node())
   {
     RCLCPP_FATAL(node->get_logger(), "Failed to configure node");

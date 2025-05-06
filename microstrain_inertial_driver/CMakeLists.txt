@@ -134,7 +134,8 @@ ament_export_dependencies(
 ###########
 
 # Find some less ROS-y packages
-list(APPEND CMAKE_MODULE_PATH "/usr/share/cmake/geographiclib/")
+# list(APPEND CMAKE_MODULE_PATH "/usr/share/cmake/geographiclib/")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(Eigen3 REQUIRED)
 find_package(GeographicLib REQUIRED)
 
@@ -150,7 +151,7 @@ include_directories(
   ${GeographicLib_INCLUDE_DIRS}
 )
 
-ament_package()
+# ament_package()
 
 set(COMMON_SRC_FILES
   ${COMMON_SRC_DIR}/subscribers.cpp
@@ -205,6 +206,7 @@ set(AMENT_COMMON_DEPENDENCIES
   tf2_ros
   tf2_geometry_msgs
   microstrain_inertial_msgs
+  rclcpp_components
 )
 
 # Plain node
@@ -216,11 +218,24 @@ set(NODE_SRC_FILES
 set(NODE_INC_FILES
   include/${PROJECT_NAME}/microstrain_inertial_driver.h
 )
-set(NODE_FILES ${NODE_SRC_FILES} ${NODE_INC_FILES})
-add_executable(${NODE_NAME} ${NODE_FILES} ${COMMON_FILES})
-ament_target_dependencies(${NODE_NAME}
+
+add_library(${PROJECT_NAME} SHARED src/microstrain_inertial_driver.cpp ${COMMON_FILES})
+ament_target_dependencies(${PROJECT_NAME}
   ${AMENT_COMMON_DEPENDENCIES}
 )
+
+rclcpp_components_register_nodes(
+  ${PROJECT_NAME}
+    PLUGIN "microstrain::Microstrain"
+    EXECUTABLE ${NODE_NAME}
+)
+set(node_plugins "${node_plugins}microstrain::Microstrain;$<TARGET_FILE:${PROJECT_NAME}>\n")
+
+# set(NODE_FILES ${NODE_SRC_FILES} ${NODE_INC_FILES})
+# add_executable(${NODE_NAME} ${NODE_FILES} ${COMMON_FILES})
+# ament_target_dependencies(${NODE_NAME}
+#   ${AMENT_COMMON_DEPENDENCIES} microstrain_driver_component
+# )
 
 # Lifecycle node
 set(LIFECYCLE_NAME ${PROJECT_NAME}_lifecycle_node)
@@ -247,6 +262,7 @@ add_definitions(-DMICROSTRAIN_DRIVER_VERSION="${DRIVER_GIT_VERSION}")
 # Let the code know if it is being compiled with ROS1 or ROS2
 if(DEFINED ENV{ROS_VERSION})
   add_definitions(-DMICROSTRAIN_ROS_VERSION=$ENV{ROS_VERSION})
+  message(STATUS "MICROSTRAIN_ROS_VERSION:" $ENV{ROS_VERSION})
 else()
   message(FATAL_ERROR "ROS_VERSION environment variable is not set.")
 endif()
@@ -268,11 +284,15 @@ endif()
 
 # Linking
 target_link_libraries(${LIFECYCLE_NAME}
-  mip
+  mip_static
   ${GeographicLib_LIBRARIES}
 )
-target_link_libraries(${NODE_NAME}
-  mip
+# target_link_libraries(${NODE_NAME}
+#   mip
+#   ${GeographicLib_LIBRARIES}
+# )
+target_link_libraries(${PROJECT_NAME}
+  mip_shared
   ${GeographicLib_LIBRARIES}
 )
 
@@ -285,10 +305,18 @@ install(TARGETS ${LIFECYCLE_NAME}
   LIBRARY DESTINATION lib/${PROJECT_NAME}
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
-install(TARGETS ${NODE_NAME}
-  DESTINATION share/${PROJECT_NAME}
-  LIBRARY DESTINATION lib/${PROJECT_NAME}
-  RUNTIME DESTINATION lib/${PROJECT_NAME}
+
+# install(TARGETS ${NODE_NAME}
+#   DESTINATION share/${PROJECT_NAME}
+#   LIBRARY DESTINATION lib/${PROJECT_NAME}
+#   RUNTIME DESTINATION lib/${PROJECT_NAME}
+# )
+install(TARGETS 
+          ${PROJECT_NAME}
+        # EXPORT export_${PROJECT_NAME}
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin/${PROJECT_NAME}
 )
 
 install(DIRECTORY launch config
@@ -303,3 +331,9 @@ install(DIRECTORY ${COMMON_DIR}/config
 set(BUILD_SHARED_LIBS "${BUILD_SHARED_LIBS_TEMP}" CACHE BOOL "${BUILD_SHARED_LIBS_TEMP}" FORCE)
 set(BUILD_EXAMPLES "${BUILD_EXAMPLES_TEMP}" CACHE BOOL "${BUILD_EXAMPLES_TEMP}" FORCE)
 set(BUILD_TESTING "${BUILD_TESTING_TEMP}" CACHE BOOL "${BUILD_TESTING_TEMP}" FORCE)
+
+# ament_export_include_directories(include)
+ament_export_libraries(${PROJECT_NAME})
+# ament_export_dependencies(${PYLON_ROS2_CAMERA_DEPENDENCIES})
+
+ament_package()
